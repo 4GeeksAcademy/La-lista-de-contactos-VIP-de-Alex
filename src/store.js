@@ -19,6 +19,13 @@ function normalizeContacts(data) {
   });
 }
 
+const createAgendaIfNeeded = async () => {
+  await fetch(`${API_BASE}/agendas/${AGENDA}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+};
+
 export default function storeReducer(store, action = {}) {
   switch (action.type) {
     case "set_contacts":
@@ -30,7 +37,13 @@ export default function storeReducer(store, action = {}) {
 
 export const actions = {
   getContacts: async (dispatch) => {
-    const resp = await fetch(`${API_BASE}/agendas/${AGENDA}/contacts`);
+    let resp = await fetch(`${API_BASE}/agendas/${AGENDA}/contacts`);
+
+    if (resp.status === 404) {
+      await createAgendaIfNeeded();
+
+      resp = await fetch(`${API_BASE}/agendas/${AGENDA}/contacts`);
+    }
 
     if (!resp.ok) {
       dispatch({ type: "set_contacts", payload: [] });
@@ -44,6 +57,8 @@ export const actions = {
   },
 
   createContact: async (dispatch, form) => {
+    await createAgendaIfNeeded();
+
     const payload = {
       name: form.name,
       full_name: form.name,
@@ -78,14 +93,12 @@ export const actions = {
       agenda_slug: AGENDA
     };
 
-    // intento 1
     let resp = await fetch(`${API_BASE}/contacts/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
-    // intento 2 si falla
     if (!resp.ok) {
       resp = await fetch(`${API_BASE}/agendas/${AGENDA}/contacts/${id}`, {
         method: "PUT",
@@ -104,12 +117,10 @@ export const actions = {
   },
 
   deleteContact: async (dispatch, id) => {
-    // intento 1
     let resp = await fetch(`${API_BASE}/contacts/${id}`, {
       method: "DELETE"
     });
 
-    // intento 2 si falla
     if (!resp.ok) {
       resp = await fetch(`${API_BASE}/agendas/${AGENDA}/contacts/${id}`, {
         method: "DELETE"
